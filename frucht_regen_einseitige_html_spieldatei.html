@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Frucht‑Regen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ui: rgba(255,255,255,.88);
+      --ui2: rgba(255,255,255,.72);
+      --shadow: 0 10px 30px rgba(0,0,0,.18);
+      --radius: 22px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      overflow:hidden;
+      font-family:"Baloo 2", system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      touch-action:none;
+      background:
+        radial-gradient(circle at 12% 15%, #fff3a8 0 22%, transparent 23%),
+        radial-gradient(circle at 88% 20%, #c7ffd8 0 18%, transparent 19%),
+        radial-gradient(circle at 20% 85%, #ffd0f0 0 20%, transparent 21%),
+        radial-gradient(circle at 80% 85%, #cfe8ff 0 22%, transparent 23%),
+        linear-gradient(135deg, #ff6b6b, #ffd93d, #6bff95, #4d96ff);
+      background-size:auto,auto,auto,auto, 300% 300%;
+      animation:bgmove 10s ease-in-out infinite;
+    }
+    @keyframes bgmove{
+      0%{ background-position: 0 0, 0 0, 0 0, 0 0, 0% 50%; }
+      50%{ background-position: 0 0, 0 0, 0 0, 0 0, 100% 50%; }
+      100%{ background-position: 0 0, 0 0, 0 0, 0 0, 0% 50%; }
+    }
+
+    #gameWrap{ position:relative; width:100vw; height:100vh; }
+    canvas{ display:block; width:100%; height:100%; }
+
+    /* UI */
+    .hud{
+      position:absolute;
+      top:14px; left:14px; right:14px;
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px;
+      pointer-events:none;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 12px;
+      background:var(--ui2);
+      border-radius:999px;
+      box-shadow:var(--shadow);
+      pointer-events:auto;
+      user-select:none;
+      backdrop-filter: blur(6px);
+    }
+    .brand img{ width:44px; height:44px; object-fit:contain; border-radius:12px; }
+    .brand .title{
+      font-family:"Nunito", system-ui;
+      font-weight:900;
+      letter-spacing:.5px;
+      color:#2b2b2b;
+      font-size:18px;
+      text-shadow: 0 2px 0 rgba(255,255,255,.65);
+      white-space:nowrap;
+    }
+
+    .scoreBox{
+      display:flex; align-items:center; gap:10px;
+      padding:10px 14px;
+      background:var(--ui);
+      border-radius:999px;
+      box-shadow:var(--shadow);
+      pointer-events:none;
+      user-select:none;
+      backdrop-filter: blur(6px);
+    }
+    .chip{
+      padding:8px 12px;
+      border-radius:999px;
+      background:linear-gradient(135deg,#fff,#f6f6ff);
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.06);
+      font-family:"Nunito";
+      font-weight:900;
+      color:#222;
+      font-size:16px;
+      display:flex; align-items:center; gap:8px;
+      min-width: 110px;
+      justify-content:center;
+    }
+    .chip small{ opacity:.75; font-weight:800; }
+    .missDots{ display:flex; gap:6px; align-items:center; }
+    .dot{
+      width:14px; height:14px; border-radius:50%;
+      background:rgba(0,0,0,.12);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.7);
+    }
+    .dot.bad{ background:#ff3b3b; }
+
+    /* Overlays */
+    .overlay{
+      position:absolute; inset:0;
+      display:none;
+      align-items:center; justify-content:center;
+      padding:18px;
+      background:rgba(0,0,0,.28);
+      backdrop-filter: blur(4px);
+    }
+    .card{
+      width:min(980px, 100%);
+      background:rgba(255,255,255,.92);
+      border-radius:var(--radius);
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+      padding:18px;
+      border: 2px solid rgba(255,255,255,.7);
+    }
+    .cardHeader{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding:10px 10px 14px;
+    }
+    .cardHeader h1{
+      margin:0;
+      font-family:"Nunito";
+      font-weight:900;
+      font-size: clamp(20px, 3.2vw, 34px);
+      color:#222;
+    }
+    .sub{
+      margin:0;
+      opacity:.8;
+      font-size: clamp(14px, 2.2vw, 18px);
+      color:#333;
+    }
+    .btnRow{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+
+    .btn{
+      appearance:none; border:0; cursor:pointer;
+      padding:14px 18px;
+      border-radius:999px;
+      font-family:"Nunito";
+      font-weight:900;
+      font-size:18px;
+      color:#1d1d1d;
+      background:linear-gradient(135deg,#ffffff,#f0f7ff);
+      box-shadow: 0 10px 18px rgba(0,0,0,.15);
+      transform: translateY(0);
+      transition: transform .08s ease, box-shadow .08s ease;
+    }
+    .btn:active{ transform: translateY(2px); box-shadow: 0 6px 14px rgba(0,0,0,.12); }
+    .btn.primary{
+      background:linear-gradient(135deg,#ffef7a,#ff7ad1);
+    }
+
+    /* Quiz */
+    #quizOverlay .card{ padding:18px 18px 16px; }
+    .quizTop{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:14px;
+      padding:6px 8px 10px;
+    }
+    .quizQ{
+      display:flex; flex-direction:column; gap:6px;
+      min-width: 0;
+    }
+    .quizQ .qTitle{
+      font-family:"Nunito";
+      font-weight:900;
+      font-size: clamp(18px, 3.2vw, 30px);
+      margin:0;
+      color:#222;
+    }
+    .quizQ .qHint{
+      margin:0;
+      color:#444;
+      opacity:.85;
+      font-size: clamp(13px, 2.2vw, 18px);
+    }
+    .attemptPill{
+      padding:10px 14px;
+      border-radius:999px;
+      background:linear-gradient(135deg,#e8fff0,#fff6dc);
+      font-family:"Nunito";
+      font-weight:900;
+      color:#1f1f1f;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.06);
+      white-space:nowrap;
+    }
+    .choices{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:14px;
+      padding:10px;
+    }
+    .choice{
+      border:0;
+      border-radius:22px;
+      background:linear-gradient(135deg,#ffffff,#f7fbff);
+      box-shadow: 0 16px 26px rgba(0,0,0,.12);
+      cursor:pointer;
+      padding:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height: min(32vh, 240px);
+      position:relative;
+      overflow:hidden;
+      transform: translateY(0);
+      transition: transform .08s ease;
+    }
+    .choice:active{ transform: translateY(2px); }
+    .choice img{
+      width: min(22vw, 220px);
+      height: min(22vw, 220px);
+      object-fit:contain;
+      filter: drop-shadow(0 14px 12px rgba(0,0,0,.18));
+      image-rendering:auto;
+      user-select:none;
+      pointer-events:none;
+    }
+
+    .toast{
+      margin:10px 10px 0;
+      border-radius:18px;
+      padding:12px 14px;
+      background:rgba(0,0,0,.06);
+      font-weight:800;
+      color:#222;
+      font-size: clamp(14px, 2.1vw, 18px);
+      display:flex; align-items:center; gap:10px;
+    }
+
+    /* Responsive tweaks */
+    @media (max-width: 860px){
+      .choices{ grid-template-columns: 1fr; }
+      .choice{ min-height: 20vh; }
+      .choice img{ width: min(58vw, 260px); height: min(58vw, 260px); }
+      .brand .title{ display:none; }
+      .brand img{ width:40px; height:40px; }
+      .chip{ min-width: 96px; }
+    }
+
+    /* Small helper label bottom */
+    .hintBar{
+      position:absolute;
+      left:14px; right:14px; bottom:12px;
+      display:flex; justify-content:center;
+      pointer-events:none;
+    }
+    .hintPill{
+      background: rgba(255,255,255,.68);
+      border-radius: 999px;
+      padding: 8px 12px;
+      box-shadow: var(--shadow);
+      font-weight:800;
+      color:#222;
+      font-size: 14px;
+      backdrop-filter: blur(6px);
+      user-select:none;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameWrap">
+    <canvas id="c"></canvas>
+
+    <div class="hud">
+      <div class="brand" aria-label="Logo">
+        <img src="frau_anna.png" alt="Frau Anna" />
+        <div class="title">Frucht‑Regen</div>
+      </div>
+
+      <div class="scoreBox">
+        <div class="chip" id="scoreChip">🍓 <small>Punkte:</small>&nbsp;<span id="score">0</span></div>
+        <div class="missDots" aria-label="Fehlversuche">
+          <div class="dot" id="d1"></div>
+          <div class="dot" id="d2"></div>
+          <div class="dot" id="d3"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hintBar">
+      <div class="hintPill">👆 Zieh die Körbchen‑Position mit dem Finger / der Maus</div>
+    </div>
+
+    <!-- Start Overlay -->
+    <div class="overlay" id="startOverlay" style="display:flex;">
+      <div class="card">
+        <div class="cardHeader">
+          <div>
+            <h1>Frucht‑Regen ☔️🍍</h1>
+            <p class="sub">Fang die Früchte! Aber 3 verpasste Früchte hintereinander → Ende.</p>
+          </div>
+          <div class="btnRow">
+            <button class="btn primary" id="startBtn">▶️ Start</button>
+          </div>
+        </div>
+        <div class="toast">⭐ Tipp: Alle 5 Punkte kommt eine kleine Frage: <b>„Wo ist …?“</b></div>
+      </div>
+    </div>
+
+    <!-- Game Over Overlay -->
+    <div class="overlay" id="overOverlay">
+      <div class="card">
+        <div class="cardHeader">
+          <div>
+            <h1>Oh nein! 🙈</h1>
+            <p class="sub">Du hast 3 Früchte hintereinander verpasst.</p>
+          </div>
+          <div class="btnRow">
+            <button class="btn primary" id="restartBtn">🔁 Nochmal spielen</button>
+          </div>
+        </div>
+        <div class="toast">Deine Punkte: <b><span id="finalScore">0</span></b></div>
+      </div>
+    </div>
+
+    <!-- Quiz Overlay -->
+    <div class="overlay" id="quizOverlay">
+      <div class="card">
+        <div class="quizTop">
+          <div class="quizQ">
+            <p class="qTitle" id="qText">Wo ist der Apfel?</p>
+            <p class="qHint" id="qHint">Tippe auf das richtige Bild.</p>
+          </div>
+          <div class="attemptPill" id="attemptPill">Versuch: 1/3</div>
+        </div>
+
+        <div class="choices" id="choices"></div>
+
+        <div class="toast" id="quizToast">🎧 Hör gut zu und tippe!</div>
+      </div>
+    </div>
+
+    <!-- Win Overlay -->
+    <div class="overlay" id="winOverlay">
+      <div class="card">
+        <div class="cardHeader">
+          <div>
+            <h1>Super! 🎉</h1>
+            <p class="sub">Du hast alle 7 Fragen beantwortet!</p>
+          </div>
+          <div class="btnRow">
+            <button class="btn primary" id="playAgainBtn">✨ Nochmal spielen</button>
+          </div>
+        </div>
+        <div class="toast">Punkte: <b><span id="winScore">0</span></b></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =============================
+    // Assets (Dateinamen wie von dir angegeben)
+    // =============================
+    const FRUITS = [
+      { key:"apfel",    img:"apfel.png",    q:"Wo ist der Apfel?",     audio:"apfel.mp3" },
+      { key:"birne",    img:"birne.png",    q:"Wo ist die Birne?",     audio:"birne.mp3" },
+      { key:"banane",   img:"banane.png",   q:"Wo ist die Banane?",    audio:"banane.mp3" },
+      { key:"orange",   img:"orange.png",   q:"Wo ist die Orange?",    audio:"orange.mp3" },
+      { key:"erdbeere", img:"erdbeere.png", q:"Wo ist die Erdbeere?",  audio:"erdbeere.mp3" },
+      { key:"pflaume",  img:"pflaume.png",  q:"Wo ist die Pflaume?",   audio:"pflaume.mp3" },
+      { key:"kirsche",  img:"kirsche.png",  q:"Wo ist die Kirsche?",   audio:"kirsche.mp3" },
+      { key:"kiwi",     img:"kiwi.png",     q:"Wo ist die Kiwi?",      audio:"kiwi.mp3" },
+      { key:"ananas",   img:"ananas.png",   q:"Wo ist die Ananas?",    audio:"ananas.mp3" },
+    ];
+
+    const AUDIO_FILES = {
+      ja:   "ja.mp3",
+      nein: "nein.mp3",
+    };
+
+    const BASKET_IMG = "korb.png";
+
+    // =============================
+    // Helpers
+    // =============================
+    const rand = (min,max)=> Math.random()*(max-min)+min;
+    const choice = (arr)=> arr[Math.floor(Math.random()*arr.length)];
+    const shuffle = (arr)=> {
+      const a = arr.slice();
+      for (let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    };
+
+    // Safe audio play (mobile friendly)
+    function playAudio(src){
+      return new Promise((resolve)=>{
+        try{
+          const a = new Audio(src);
+          a.preload = "auto";
+          a.playsInline = true;
+          a.onended = ()=> resolve(true);
+          a.onerror = ()=> resolve(false);
+          // Try play; if blocked, resolve anyway
+          const p = a.play();
+          if (p && typeof p.then === "function"){
+            p.then(()=>{}).catch(()=> resolve(false));
+          }
+          // Fallback: resolve after 2s if no end
+          setTimeout(()=> resolve(true), 2200);
+        }catch(e){
+          resolve(false);
+        }
+      });
+    }
+
+    // =============================
+    // Canvas setup
+    // =============================
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    function resize(){
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      canvas.width  = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      W = window.innerWidth;
+      H = window.innerHeight;
+      // Recompute basket size when resizing
+      basket.w = clamp(W*0.18, 130, 240);
+      basket.h = basket.w*0.55;
+      basket.y = H - basket.h - clamp(H*0.05, 14, 34);
+      basket.x = clamp(basket.x, 0, W-basket.w);
+    }
+
+    let W = window.innerWidth, H = window.innerHeight;
+
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // Load images
+    const imgMap = new Map();
+    function loadImage(src){
+      return new Promise((resolve)=>{
+        const im = new Image();
+        im.onload = ()=> resolve(im);
+        im.onerror = ()=> resolve(null);
+        im.src = src;
+      });
+    }
+
+    // =============================
+    // Game State
+    // =============================
+    const scoreEl = document.getElementById('score');
+    const scoreChip = document.getElementById('scoreChip');
+    const finalScoreEl = document.getElementById('finalScore');
+    const winScoreEl = document.getElementById('winScore');
+    const dots = [document.getElementById('d1'), document.getElementById('d2'), document.getElementById('d3')];
+
+    const startOverlay = document.getElementById('startOverlay');
+    const overOverlay  = document.getElementById('overOverlay');
+    const quizOverlay  = document.getElementById('quizOverlay');
+    const winOverlay   = document.getElementById('winOverlay');
+
+    const qText = document.getElementById('qText');
+    const qHint = document.getElementById('qHint');
+    const attemptPill = document.getElementById('attemptPill');
+    const choicesEl = document.getElementById('choices');
+    const quizToast = document.getElementById('quizToast');
+
+    let running = false;
+    let pausedForQuiz = false;
+    let gameOver = false;
+    let gameWon = false;
+
+    let score = 0;
+    let missedStreak = 0;
+    let nextQuizAt = 5;
+
+    // 7 Questions, random order, no repeats
+    let questionQueue = [];
+    let questionsAnswered = 0;
+
+    // Falling items
+    let items = [];
+    let spawnT = 0;
+
+    // Confetti particles (win)
+    let confetti = [];
+    let confettiT = 0;
+
+    // Basket
+    const basket = {
+      x: 0,
+      y: 0,
+      w: 180,
+      h: 100,
+      img: null,
+    };
+
+    // Input
+    let pointerDown = false;
+    let pointerId = null;
+
+    function setBasketCenterX(cx){
+      basket.x = clamp(cx - basket.w/2, 0, W - basket.w);
+    }
+
+    // =============================
+    // Drawing
+    // =============================
+    function draw(){
+      // Clear with transparent (body background shows through)
+      ctx.clearRect(0,0,W,H);
+
+      // Soft floating bubbles
+      drawBubbles();
+
+      // Items
+      for (const it of items){
+        if (!it.img) continue;
+        ctx.save();
+        ctx.translate(it.x + it.size/2, it.y + it.size/2);
+        ctx.rotate(it.rot);
+        ctx.translate(-it.size/2, -it.size/2);
+        ctx.drawImage(it.img, 0, 0, it.size, it.size);
+        ctx.restore();
+      }
+
+      // Basket shadow
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#000';
+      const shW = basket.w*0.86;
+      const shH = basket.h*0.18;
+      ctx.beginPath();
+      ctx.ellipse(basket.x + basket.w/2, basket.y + basket.h*0.88, shW/2, shH/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // Basket
+      if (basket.img){
+        ctx.drawImage(basket.img, basket.x, basket.y, basket.w, basket.h);
+      } else {
+        // Fallback
+        ctx.fillStyle = 'rgba(255,255,255,.8)';
+        roundRect(basket.x, basket.y, basket.w, basket.h, 18);
+        ctx.fill();
+      }
+
+      // Confetti (win)
+      if (gameWon){
+        for (const p of confetti){
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.r);
+          ctx.globalAlpha = p.a;
+          ctx.fillStyle = p.c;
+          ctx.fillRect(-p.s/2, -p.s/2, p.s, p.s*0.6);
+          ctx.restore();
+        }
+      }
+    }
+
+    let bubbles = [];
+    function initBubbles(){
+      bubbles = [];
+      const n = Math.round(clamp(W/90, 8, 18));
+      for (let i=0;i<n;i++){
+        bubbles.push({
+          x: rand(0,W), y: rand(0,H), r: rand(12, 34),
+          vx: rand(-0.15, 0.15), vy: rand(-0.22, -0.05),
+          a: rand(0.05, 0.12)
+        });
+      }
+    }
+
+    function drawBubbles(){
+      ctx.save();
+      for (const b of bubbles){
+        ctx.globalAlpha = b.a;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function roundRect(x,y,w,h,r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr,y);
+      ctx.arcTo(x+w,y, x+w,y+h, rr);
+      ctx.arcTo(x+w,y+h, x,y+h, rr);
+      ctx.arcTo(x,y+h, x,y, rr);
+      ctx.arcTo(x,y, x+w,y, rr);
+      ctx.closePath();
+    }
+
+    // =============================
+    // Update loop
+    // =============================
+    let last = 0;
+    function loop(ts){
+      const dt = Math.min(0.033, (ts - last)/1000 || 0);
+      last = ts;
+
+      if (running && !pausedForQuiz && !gameOver && !gameWon){
+        update(dt);
+      }
+
+      if (gameWon){
+        updateConfetti(dt);
+      }
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function update(dt){
+      // Spawn
+      spawnT += dt;
+      const spawnEvery = clamp(0.75 - Math.min(0.35, score*0.006), 0.38, 0.75);
+      if (spawnT >= spawnEvery){
+        spawnT = 0;
+        spawnFruit();
+      }
+
+      // Move items
+      const catchPad = 10;
+      for (let i=items.length-1;i>=0;i--){
+        const it = items[i];
+        it.y += it.vy * dt;
+        it.rot += it.vr * dt;
+
+        // Catch check
+        const bx = basket.x, by = basket.y, bw = basket.w, bh = basket.h;
+        const ix = it.x, iy = it.y, s = it.size;
+        const hit = (ix + s*0.25 < bx + bw - catchPad) && (ix + s*0.75 > bx + catchPad) &&
+                    (iy + s*0.75 > by) && (iy + s*0.25 < by + bh);
+        if (hit){
+          items.splice(i,1);
+          addScore(1);
+          missedStreak = 0;
+          updateMissDots();
+          // small bounce
+          basketBounce();
+          continue;
+        }
+
+        // Missed
+        if (it.y > H + s){
+          items.splice(i,1);
+          missedStreak++;
+          updateMissDots();
+          if (missedStreak >= 3){
+            endGame(false);
+            return;
+          }
+        }
+      }
+
+      // Trigger quiz when reaching threshold (5,10,15,...)
+      if (score >= nextQuizAt && questionsAnswered < 7){
+        nextQuizAt += 5;
+        startQuiz();
+      }
+
+      // If all 7 answered → win
+      if (questionsAnswered >= 7 && !gameWon){
+        endGame(true);
+      }
+
+      // Bubble drift
+      for (const b of bubbles){
+        b.x += b.vx;
+        b.y += b.vy;
+        if (b.y + b.r < -20) b.y = H + b.r + 20;
+        if (b.x + b.r < -30) b.x = W + b.r + 30;
+        if (b.x - b.r > W + 30) b.x = -b.r - 30;
+      }
+    }
+
+    function spawnFruit(){
+      const f = choice(FRUITS);
+      const im = imgMap.get(f.img);
+      const size = clamp(W*0.085, 58, 96); // big for kids
+      const x = rand(10, W - size - 10);
+      const vy = rand(H*0.35, H*0.55) + Math.min(H*0.18, score*2);
+      items.push({
+        fruitKey: f.key,
+        img: im,
+        x,
+        y: -size - 10,
+        size,
+        vy,
+        rot: rand(-0.4,0.4),
+        vr: rand(-1.1,1.1)
+      });
+    }
+
+    // Basket bounce animation
+    let basketPop = 0;
+    function basketBounce(){
+      basketPop = 0.12;
+    }
+
+    // =============================
+    // Score + UI
+    // =============================
+    function addScore(n){
+      score += n;
+      scoreEl.textContent = String(score);
+      // little pop animation on chip
+      scoreChip.animate([
+        { transform:"scale(1)" },
+        { transform:"scale(1.08)" },
+        { transform:"scale(1)" }
+      ], { duration: 220, easing:"ease-out" });
+    }
+
+    function updateMissDots(){
+      dots.forEach((d, idx)=>{
+        d.classList.toggle('bad', idx < missedStreak);
+      });
+    }
+
+    // =============================
+    // Quiz logic
+    // =============================
+    let currentQ = null;
+    let attempts = 0;
+
+    function prepareQuestions(){
+      questionQueue = shuffle(FRUITS).slice(0,7); // 7 without repeats
+      questionsAnswered = 0;
+    }
+
+    async function startQuiz(){
+      pausedForQuiz = true;
+      // Remove some falling items so it looks calmer
+      items = items.slice(0, Math.min(items.length, 6));
+
+      currentQ = questionQueue[questionsAnswered];
+      attempts = 0;
+      showQuizOverlay();
+
+      // Play question audio
+      await playAudio(currentQ.audio);
+    }
+
+    function showQuizOverlay(){
+      quizOverlay.style.display = "flex";
+      qText.textContent = currentQ.q;
+      qHint.textContent = "Tippe auf das richtige Bild.";
+      quizToast.textContent = "🎧 Hör gut zu und tippe!";
+      attempts = 0;
+      updateAttemptPill();
+
+      // Build 3 choices: correct + 2 random different
+      const others = FRUITS.filter(f => f.key !== currentQ.key);
+      const picks = shuffle(others).slice(0,2);
+      const options = shuffle([currentQ, ...picks]);
+
+      choicesEl.innerHTML = "";
+      for (const opt of options){
+        const btn = document.createElement('button');
+        btn.className = 'choice';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', opt.key);
+        const im = document.createElement('img');
+        im.src = opt.img;
+        im.alt = opt.key;
+        btn.appendChild(im);
+        btn.addEventListener('click', ()=> onChoice(opt));
+        choicesEl.appendChild(btn);
+      }
+    }
+
+    function updateAttemptPill(){
+      attemptPill.textContent = `Versuch: ${Math.min(attempts+1, 3)}/3`;
+    }
+
+    async function onChoice(opt){
+      if (!pausedForQuiz) return;
+
+      if (opt.key === currentQ.key){
+        // Correct
+        const a = attempts + 1;
+        const bonus = (a === 1) ? 3 : (a === 2) ? 2 : (a === 3) ? 1 : 0;
+        quizToast.textContent = bonus > 0
+          ? `✅ Ja! Super! +${bonus} Punkte!`
+          : `✅ Ja! Super!`;
+
+        await playAudio(AUDIO_FILES.ja);
+        if (bonus > 0) addScore(bonus);
+
+        questionsAnswered++;
+        closeQuizOverlay();
+        return;
+      }
+
+      // Wrong
+      attempts++;
+      updateAttemptPill();
+      quizToast.textContent = "❌ Nein! Versuch nochmal!";
+      await playAudio(AUDIO_FILES.nein);
+
+      if (attempts >= 3){
+        // After 3 wrong attempts: keep letting them try, but no bonus anymore
+        qHint.textContent = "Nochmal – du schaffst das!";
+      }
+    }
+
+    function closeQuizOverlay(){
+      quizOverlay.style.display = "none";
+      pausedForQuiz = false;
+      currentQ = null;
+      attempts = 0;
+    }
+
+    // =============================
+    // End states
+    // =============================
+    function endGame(win){
+      running = false;
+      pausedForQuiz = true;
+
+      if (win){
+        gameWon = true;
+        winScoreEl.textContent = String(score);
+        startConfetti();
+        winOverlay.style.display = "flex";
+      } else {
+        gameOver = true;
+        finalScoreEl.textContent = String(score);
+        overOverlay.style.display = "flex";
+      }
+    }
+
+    function resetGame(){
+      items = [];
+      confetti = [];
+      confettiT = 0;
+
+      score = 0;
+      missedStreak = 0;
+      nextQuizAt = 5;
+      scoreEl.textContent = "0";
+      updateMissDots();
+
+      gameOver = false;
+      gameWon = false;
+      pausedForQuiz = false;
+      running = true;
+
+      prepareQuestions();
+
+      // Center basket
+      basket.x = (W - basket.w)/2;
+      basket.y = H - basket.h - clamp(H*0.05, 14, 34);
+
+      // Hide overlays
+      startOverlay.style.display = "none";
+      overOverlay.style.display = "none";
+      quizOverlay.style.display = "none";
+      winOverlay.style.display = "none";
+    }
+
+    // =============================
+    // Confetti
+    // =============================
+    function startConfetti(){
+      confetti = [];
+      const colors = ["#ff3b3b","#ffcc00","#2ee59d","#3d7bff","#ff5bd8","#ffffff"]; 
+      const count = Math.round(clamp(W/6, 120, 220));
+      for (let i=0;i<count;i++){
+        confetti.push({
+          x: rand(0,W),
+          y: rand(-H*0.2, H*0.2),
+          vx: rand(-90,90),
+          vy: rand(80, 220),
+          g: rand(180, 420),
+          r: rand(0, Math.PI*2),
+          vr: rand(-6,6),
+          s: rand(8, 16),
+          a: 1,
+          c: choice(colors)
+        });
+      }
+    }
+
+    function updateConfetti(dt){
+      confettiT += dt;
+      for (const p of confetti){
+        p.vy += p.g * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.r += p.vr * dt;
+        if (p.y > H + 30){
+          p.y = rand(-60, -10);
+          p.x = rand(0,W);
+          p.vy = rand(60, 160);
+        }
+        if (p.x < -40) p.x = W + 40;
+        if (p.x > W + 40) p.x = -40;
+      }
+    }
+
+    // =============================
+    // Input (mouse + touch via Pointer Events)
+    // =============================
+    function getEventX(e){
+      if (e.touches && e.touches[0]) return e.touches[0].clientX;
+      return e.clientX;
+    }
+
+    canvas.addEventListener('pointerdown', (e)=>{
+      pointerDown = true;
+      pointerId = e.pointerId;
+      canvas.setPointerCapture(pointerId);
+      setBasketCenterX(e.clientX);
+    }, { passive:false });
+
+    canvas.addEventListener('pointermove', (e)=>{
+      if (!running || pausedForQuiz) return;
+      if (pointerDown){
+        setBasketCenterX(e.clientX);
+      } else {
+        // Desktop: allow hovering mouse move
+        if (e.pointerType === "mouse"){
+          setBasketCenterX(e.clientX);
+        }
+      }
+    }, { passive:false });
+
+    canvas.addEventListener('pointerup', (e)=>{
+      if (pointerId === e.pointerId){
+        pointerDown = false;
+        pointerId = null;
+      }
+    }, { passive:true });
+
+    canvas.addEventListener('pointercancel', ()=>{
+      pointerDown = false;
+      pointerId = null;
+    });
+
+    // Prevent page scroll on touch
+    window.addEventListener('touchmove', (e)=> e.preventDefault(), { passive:false });
+
+    // =============================
+    // Buttons
+    // =============================
+    document.getElementById('startBtn').addEventListener('click', async ()=>{
+      // Unlock audio on mobile with a short silent play attempt
+      try{ await playAudio(AUDIO_FILES.ja); }catch(e){}
+      resetGame();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', ()=> resetGame());
+    document.getElementById('playAgainBtn').addEventListener('click', ()=> resetGame());
+
+    // =============================
+    // Init
+    // =============================
+    async function init(){
+      // Load images
+      const promises = [];
+      for (const f of FRUITS){
+        promises.push(loadImage(f.img).then(im => imgMap.set(f.img, im)));
+      }
+      promises.push(loadImage(BASKET_IMG).then(im => basket.img = im));
+      await Promise.all(promises);
+
+      // Setup sizes
+      basket.x = (W - basket.w)/2;
+      basket.y = H - basket.h - 20;
+
+      resize();
+      initBubbles();
+
+      window.addEventListener('resize', ()=>{ resize(); initBubbles(); });
+
+      prepareQuestions();
+      updateMissDots();
+
+      requestAnimationFrame(loop);
+    }
+
+    init();
+  </script>
+</body>
+</html>

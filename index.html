@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Frucht‑Regen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --card:#ffffffcc;
+      --shadow: 0 14px 38px rgba(0,0,0,.18);
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      overflow:hidden;
+      font-family:'Baloo 2','Nunito',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-select:none;
+      background:
+        radial-gradient(circle at 15% 20%, #ffef7a 0 18%, transparent 19%),
+        radial-gradient(circle at 85% 30%, #7af0ff 0 16%, transparent 17%),
+        radial-gradient(circle at 30% 80%, #ff7ad6 0 18%, transparent 19%),
+        radial-gradient(circle at 75% 75%, #8bff7a 0 16%, transparent 17%),
+        linear-gradient(135deg, #6b5bff 0%, #ff3ea5 35%, #ffb703 70%, #3dd6ff 100%);
+      animation:bgMove 10s ease-in-out infinite alternate;
+    }
+    @keyframes bgMove{
+      from{ filter:saturate(1.05) hue-rotate(0deg); }
+      to{ filter:saturate(1.25) hue-rotate(10deg); }
+    }
+
+    #app{
+      position:relative;
+      width:100vw;
+      height:100vh;
+    }
+
+    canvas#game{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    /* HUD */
+    .hud{
+      position:absolute;
+      left:16px;
+      top:12px;
+      right:16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      pointer-events:none;
+    }
+    .logo{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background:var(--card);
+      border-radius:18px;
+      padding:8px 12px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(6px);
+      pointer-events:none;
+    }
+    .logo img{ height:40px; width:auto; display:block; }
+    .title{
+      font-weight:800;
+      font-size:22px;
+      line-height:1;
+      color:#2a145a;
+      text-shadow: 0 2px 0 rgba(255,255,255,.55);
+      letter-spacing:.3px;
+      white-space:nowrap;
+    }
+
+    .stats{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    .pill{
+      background:var(--card);
+      border-radius:999px;
+      padding:10px 14px;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(6px);
+      color:#2a145a;
+      font-weight:800;
+      font-size:18px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .pill small{ font-weight:800; opacity:.85; }
+
+    .hearts{
+      display:flex;
+      gap:6px;
+      align-items:center;
+      font-size:20px;
+      line-height:1;
+    }
+
+    /* Big button */
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      border-radius:18px;
+      padding:14px 18px;
+      font-family:inherit;
+      font-weight:900;
+      font-size:18px;
+      letter-spacing:.3px;
+      color:#2a145a;
+      background:linear-gradient(135deg,#fff 0%, #ffe9a8 45%, #b5ffea 100%);
+      box-shadow: 0 16px 0 rgba(0,0,0,.12), 0 8px 28px rgba(0,0,0,.22);
+      transform:translateY(0);
+      transition: transform .12s ease, filter .12s ease;
+    }
+    .btn:active{ transform:translateY(4px); filter:saturate(1.1); }
+
+    /* Overlay */
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(5px);
+      z-index:5;
+    }
+    .overlay.show{ display:flex; }
+
+    .panel{
+      width:min(980px, 96vw);
+      border-radius:26px;
+      background:#ffffffee;
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+      padding:18px;
+      border: 3px solid rgba(255,255,255,.6);
+    }
+
+    .panelTop{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .panel h2{
+      margin:0;
+      font-size:28px;
+      font-weight:900;
+      color:#2a145a;
+      text-shadow: 0 2px 0 rgba(255,255,255,.65);
+    }
+    .subtitle{
+      margin-top:6px;
+      font-size:18px;
+      font-weight:800;
+      color:#3a2277;
+      opacity:.95;
+    }
+
+    .choices{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:14px;
+      margin-top:14px;
+    }
+
+    .choice{
+      background:linear-gradient(135deg,#ffffff 0%, #f6f0ff 55%, #e9fff8 100%);
+      border-radius:22px;
+      padding:14px;
+      border: 3px solid rgba(80, 0, 255, .12);
+      box-shadow: 0 12px 22px rgba(0,0,0,.14);
+      cursor:pointer;
+      transition: transform .12s ease;
+    }
+    .choice:active{ transform: scale(.98); }
+    .choice img{
+      width:100%;
+      height:clamp(110px, 18vh, 200px);
+      object-fit:contain;
+      display:block;
+      filter: drop-shadow(0 10px 10px rgba(0,0,0,.15));
+    }
+
+    .msg{
+      margin-top:12px;
+      padding:12px 14px;
+      border-radius:18px;
+      font-weight:900;
+      font-size:18px;
+      color:#2a145a;
+      background:linear-gradient(135deg,#fff6b8,#c9fff1);
+      box-shadow: 0 10px 22px rgba(0,0,0,.12);
+      display:none;
+    }
+    .msg.show{ display:block; }
+
+    /* Start / end screens */
+    .center{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+      text-align:center;
+    }
+
+    .bigText{
+      font-size: clamp(26px, 4vw, 44px);
+      font-weight:900;
+      color:#2a145a;
+      text-shadow: 0 3px 0 rgba(255,255,255,.7);
+      margin:0;
+    }
+    .smallText{
+      margin:0;
+      font-size: clamp(16px, 2.2vw, 22px);
+      font-weight:800;
+      color:#3a2277;
+      opacity:.95;
+    }
+
+    /* Responsive */
+    @media (max-width: 720px){
+      .title{ font-size:18px; }
+      .logo img{ height:34px; }
+      .pill{ font-size:16px; padding:9px 12px; }
+      .panel h2{ font-size:24px; }
+      .subtitle{ font-size:16px; }
+      .choices{ gap:10px; }
+      .choice{ padding:10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <div class="hud">
+      <div class="logo" aria-hidden="true">
+        <img src="frau_anna.png" alt="Frau Anna" onerror="this.style.display='none'" />
+        <div class="title">Frucht‑Regen</div>
+      </div>
+
+      <div class="stats">
+        <div class="pill"><small>⭐</small> <span id="score">0</span></div>
+        <div class="pill"><small>❌</small> <span id="miss">0</span>/3</div>
+        <div class="pill"><small>❓</small> <span id="qdone">0</span>/7</div>
+      </div>
+    </div>
+
+    <!-- START / GAMEOVER / WIN -->
+    <div id="screen" class="overlay show">
+      <div class="panel">
+        <div class="center">
+          <p class="bigText">Frucht‑Regen 🍎🍌🍓</p>
+          <p class="smallText">Bewege den Korb und fange die Früchte!<br>3 Früchte hintereinander verpasst = Ende.</p>
+          <button id="startBtn" class="btn">Los geht’s! 🎉</button>
+          <p class="smallText" style="opacity:.85">Tipp: Auf dem Tablet einfach mit dem Finger ziehen.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUESTION OVERLAY -->
+    <div id="quiz" class="overlay">
+      <div class="panel">
+        <div class="panelTop">
+          <div>
+            <h2 id="qTitle">Wo ist der Apfel?</h2>
+            <div class="subtitle" id="qSub">Tippe auf das richtige Bild.</div>
+          </div>
+          <div class="pill" style="pointer-events:none"><small>Versuche</small> <span id="tries">1</span>/3</div>
+        </div>
+
+        <div class="choices" id="choices"></div>
+        <div class="msg" id="qMsg">—</div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const scoreEl = document.getElementById('score');
+  const missEl  = document.getElementById('miss');
+  const qdoneEl = document.getElementById('qdone');
+
+  const screen = document.getElementById('screen');
+  const startBtn = document.getElementById('startBtn');
+
+  const quiz = document.getElementById('quiz');
+  const qTitle = document.getElementById('qTitle');
+  const qSub   = document.getElementById('qSub');
+  const triesEl = document.getElementById('tries');
+  const choicesWrap = document.getElementById('choices');
+  const qMsg = document.getElementById('qMsg');
+
+  // ---------- Assets ----------
+  const FRUITS = [
+    { key:'apfel',    img:'apfel.png',    article:'der', q:'Wo ist der Apfel?' },
+    { key:'birne',    img:'birne.png',    article:'die', q:'Wo ist die Birne?' },
+    { key:'banane',   img:'banane.png',   article:'die', q:'Wo ist die Banane?' },
+    { key:'orange',   img:'orange.png',   article:'die', q:'Wo ist die Orange?' },
+    { key:'erdbeere', img:'erdbeere.png', article:'die', q:'Wo ist die Erdbeere?' },
+    { key:'pflaume',  img:'pflaume.png',  article:'die', q:'Wo ist die Pflaume?' },
+    { key:'kirsche',  img:'kirsche.png',  article:'die', q:'Wo ist die Kirsche?' },
+    { key:'kiwi',     img:'kiwi.png',     article:'die', q:'Wo ist die Kiwi?' },
+    { key:'ananas',   img:'ananas.png',   article:'die', q:'Wo ist die Ananas?' },
+  ];
+
+  const QUESTION_AUDIO = {
+    apfel:'apfel.mp3',
+    birne:'birne.mp3',
+    banane:'banane.mp3',
+    orange:'orange.mp3',
+    erdbeere:'erdbeere.mp3',
+    pflaume:'pflaume.mp3',
+    kirsche:'kirsche.mp3',
+    kiwi:'kiwi.mp3',
+    ananas:'ananas.mp3'
+  };
+
+  const BASKET_IMG = 'korb.png';
+  const A_JA = 'ja.mp3';
+  const A_NEIN = 'nein.mp3';
+
+  const imgCache = new Map();
+
+  function loadImage(src){
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(img); // still resolve
+      img.src = src;
+    });
+  }
+
+  function playAudio(src){
+    return new Promise((resolve) => {
+      const a = new Audio(src);
+      a.preload = 'auto';
+      a.onended = () => resolve();
+      a.onerror = () => resolve();
+      // iOS/Safari requires user gesture; our calls happen after gameplay interaction.
+      a.play().then(() => {}).catch(() => {});
+      // Fallback resolve if onended never fires
+      setTimeout(resolve, 3500);
+    });
+  }
+
+  // ---------- Resize ----------
+  function resize(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width  = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // ---------- Game State ----------
+  let running = false;
+  let pausedForQuiz = false;
+  let score = 0;
+  let consecutiveMiss = 0;
+  let caughtCount = 0; // only catches, for 5-catch trigger
+
+  const basket = {
+    x: 0,
+    y: 0,
+    w: 180,
+    h: 110,
+    targetX: 0,
+  };
+
+  const fruits = []; // falling objects
+
+  const confetti = [];
+
+  // Quiz state
+  let quizQueue = []; // 7 unique keys
+  let quizDone = 0;
+  let currentQuiz = null;
+  let attempt = 1;
+
+  // Timing
+  let lastT = 0;
+  let spawnTimer = 0;
+
+  // ---------- Helpers ----------
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  function setScore(v){ score = v; scoreEl.textContent = String(score); }
+  function setMiss(v){ consecutiveMiss = v; missEl.textContent = String(consecutiveMiss); }
+  function setQuizDone(v){ quizDone = v; qdoneEl.textContent = String(quizDone); }
+
+  function resetGame(){
+    fruits.length = 0;
+    confetti.length = 0;
+    running = false;
+    pausedForQuiz = false;
+    setScore(0);
+    setMiss(0);
+    caughtCount = 0;
+
+    // choose 7 unique questions out of 9
+    const keys = FRUITS.map(f => f.key);
+    shuffle(keys);
+    quizQueue = keys.slice(0,7);
+    setQuizDone(0);
+    currentQuiz = null;
+    attempt = 1;
+
+    lastT = 0;
+    spawnTimer = 0;
+
+    placeBasket();
+  }
+
+  function placeBasket(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // scale basket by screen
+    const base = Math.min(w, h);
+    basket.w = clamp(Math.round(base * 0.23), 140, 230);
+    basket.h = Math.round(basket.w * 0.62);
+    basket.y = h - basket.h - clamp(Math.round(h*0.05), 12, 28);
+
+    basket.x = (w - basket.w)/2;
+    basket.targetX = basket.x;
+  }
+
+  // ---------- Input (mouse + touch via pointer) ----------
+  let dragging = false;
+  function pointerToX(e){
+    const rect = canvas.getBoundingClientRect();
+    return (e.clientX - rect.left);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if(!running || pausedForQuiz) return;
+    dragging = true;
+    canvas.setPointerCapture(e.pointerId);
+    const px = pointerToX(e);
+    basket.targetX = clamp(px - basket.w/2, 0, window.innerWidth - basket.w);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if(!dragging || !running || pausedForQuiz) return;
+    const px = pointerToX(e);
+    basket.targetX = clamp(px - basket.w/2, 0, window.innerWidth - basket.w);
+  });
+
+  function stopDrag(){ dragging = false; }
+  canvas.addEventListener('pointerup', stopDrag);
+  canvas.addEventListener('pointercancel', stopDrag);
+  canvas.addEventListener('pointerleave', stopDrag);
+
+  // ---------- Spawning Fruits ----------
+  function spawnFruit(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    const base = Math.min(w, h);
+    const size = clamp(Math.round(base * 0.12), 60, 110); // big for kids
+
+    const f = FRUITS[Math.floor(Math.random()*FRUITS.length)];
+    const x = rand(10, w - size - 10);
+    const y = -size - rand(0, 120);
+
+    const speed = rand(180, 260) + Math.min(120, score*2); // a bit faster with score
+
+    fruits.push({
+      key: f.key,
+      img: f.img,
+      x, y,
+      vx: rand(-10, 10),
+      vy: speed,
+      s: size,
+      rot: rand(-0.2,0.2),
+      rSpeed: rand(-1.2,1.2)
+    });
+  }
+
+  // ---------- Drawing ----------
+  function drawRoundedRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function draw(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    ctx.clearRect(0,0,w,h);
+
+    // soft glow floor
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    const g = ctx.createRadialGradient(w/2, h, 10, w/2, h, Math.min(w,h)*0.6);
+    g.addColorStop(0,'rgba(255,255,255,0.7)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+    ctx.restore();
+
+    // Fruits
+    for(const o of fruits){
+      const img = imgCache.get(o.img);
+      ctx.save();
+      ctx.translate(o.x + o.s/2, o.y + o.s/2);
+      ctx.rotate(o.rot);
+      // shadow
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath();
+      ctx.ellipse(0, o.s*0.45, o.s*0.30, o.s*0.12, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      if(img && img.complete && img.naturalWidth){
+        ctx.drawImage(img, -o.s/2, -o.s/2, o.s, o.s);
+      } else {
+        // fallback colorful circle
+        ctx.fillStyle = 'rgba(255,255,255,.9)';
+        ctx.beginPath();
+        ctx.arc(0,0,o.s/2,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Basket
+    const basketImg = imgCache.get(BASKET_IMG);
+    ctx.save();
+    // drop shadow
+    ctx.globalAlpha = 0.25;
+    drawRoundedRect(basket.x+10, basket.y + basket.h*0.55, basket.w-20, basket.h*0.35, 18);
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    if(basketImg && basketImg.complete && basketImg.naturalWidth){
+      ctx.drawImage(basketImg, basket.x, basket.y, basket.w, basket.h);
+    } else {
+      // fallback
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      drawRoundedRect(basket.x, basket.y, basket.w, basket.h, 22);
+      ctx.fill();
+      ctx.fillStyle = '#2a145a';
+      ctx.font = '900 18px "Baloo 2"';
+      ctx.textAlign = 'center';
+      ctx.fillText('KORB', basket.x + basket.w/2, basket.y + basket.h/2);
+    }
+    ctx.restore();
+
+    // Confetti
+    if(confetti.length){
+      for(const p of confetti){
+        ctx.save();
+        ctx.globalAlpha = p.a;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.r);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.s/2, -p.s/2, p.s, p.s);
+        ctx.restore();
+      }
+    }
+  }
+
+  // ---------- Update Loop ----------
+  function update(dt){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    // smooth basket
+    const smooth = 1 - Math.pow(0.001, dt);
+    basket.x += (basket.targetX - basket.x) * smooth;
+
+    // spawn rhythm
+    spawnTimer += dt;
+    const interval = clamp(0.75 - score*0.004, 0.34, 0.75);
+    while(spawnTimer > interval){
+      spawnTimer -= interval;
+      spawnFruit();
+    }
+
+    // move fruits
+    for(let i=fruits.length-1;i>=0;i--){
+      const o = fruits[i];
+      o.y += o.vy * dt;
+      o.x += o.vx * dt;
+      o.rot += o.rSpeed * dt * 0.7;
+
+      // wrap x slightly
+      if(o.x < -o.s) o.x = w + o.s;
+      if(o.x > w + o.s) o.x = -o.s;
+
+      // collision with basket (simple AABB)
+      const hit = (
+        o.x + o.s*0.20 < basket.x + basket.w &&
+        o.x + o.s*0.80 > basket.x &&
+        o.y + o.s*0.75 > basket.y &&
+        o.y + o.s*0.30 < basket.y + basket.h
+      );
+      if(hit){
+        fruits.splice(i,1);
+        setScore(score + 1);
+        caughtCount += 1;
+        setMiss(0);
+
+        // Every 5 caught fruits => quiz
+        if(caughtCount % 5 === 0){
+          startQuizIfAvailable();
+        }
+        continue;
+      }
+
+      // missed
+      if(o.y > h + o.s){
+        fruits.splice(i,1);
+        setMiss(consecutiveMiss + 1);
+        if(consecutiveMiss >= 3){
+          endGame(false);
+          return;
+        }
+      }
+    }
+
+    // confetti
+    for(let i=confetti.length-1;i>=0;i--){
+      const p = confetti[i];
+      p.vy += 680 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.r += p.vr * dt;
+      p.a -= 0.6 * dt;
+      if(p.a <= 0 || p.y > h + 40) confetti.splice(i,1);
+    }
+  }
+
+  function loop(t){
+    if(!running){
+      draw();
+      requestAnimationFrame(loop);
+      return;
+    }
+
+    if(!lastT) lastT = t;
+    const dt = Math.min(0.033, (t - lastT)/1000);
+    lastT = t;
+
+    if(!pausedForQuiz){
+      update(dt);
+    } else {
+      // still animate basket + confetti subtly
+      const w = window.innerWidth;
+      const smooth = 1 - Math.pow(0.001, dt);
+      basket.x += (basket.targetX - basket.x) * smooth;
+      // confetti update
+      for(let i=confetti.length-1;i>=0;i--){
+        const p = confetti[i];
+        p.vy += 680 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.r += p.vr * dt;
+        p.a -= 0.6 * dt;
+        if(p.a <= 0 || p.y > window.innerHeight + 40) confetti.splice(i,1);
+      }
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Quiz Logic ----------
+  function startQuizIfAvailable(){
+    if(pausedForQuiz) return;
+
+    if(quizDone >= 7){
+      // already completed
+      return;
+    }
+
+    if(!quizQueue.length){
+      // safety
+      endGame(true);
+      return;
+    }
+
+    const key = quizQueue.shift();
+    const target = FRUITS.find(f => f.key === key);
+    currentQuiz = target;
+    attempt = 1;
+    triesEl.textContent = '1';
+
+    pausedForQuiz = true;
+    quiz.classList.add('show');
+    qMsg.classList.remove('show');
+    qMsg.textContent = '';
+
+    qTitle.textContent = target.q;
+    qSub.textContent = 'Tippe auf das richtige Bild.';
+
+    // choose 2 distractors
+    const others = FRUITS.filter(f => f.key !== target.key);
+    shuffle(others);
+    const picks = [target, others[0], others[1]];
+    shuffle(picks);
+
+    choicesWrap.innerHTML = '';
+    for(const item of picks){
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.type = 'button';
+      btn.setAttribute('data-key', item.key);
+      btn.innerHTML = `<img src="${item.img}" alt="${item.key}">`;
+      btn.addEventListener('click', () => onChoice(item.key), { once:false });
+      choicesWrap.appendChild(btn);
+    }
+
+    // play question audio
+    const qa = QUESTION_AUDIO[target.key];
+    // Try: play the question sound, if missing still continue
+    playAudio(qa).then(() => {});
+  }
+
+  async function onChoice(key){
+    if(!pausedForQuiz || !currentQuiz) return;
+
+    if(key === currentQuiz.key){
+      // correct
+      qMsg.classList.add('show');
+      qMsg.textContent = 'Ja! Super! ✅';
+
+      await playAudio(A_JA);
+
+      const bonus = (attempt === 1) ? 3 : (attempt === 2) ? 2 : 1;
+      setScore(score + bonus);
+
+      quiz.classList.remove('show');
+      pausedForQuiz = false;
+
+      setQuizDone(quizDone + 1);
+      currentQuiz = null;
+
+      // after all 7
+      if(quizDone >= 7){
+        endGame(true);
+      }
+      return;
+    }
+
+    // wrong
+    qMsg.classList.add('show');
+    qMsg.textContent = 'Nein! Versuch nochmal! ❌';
+    await playAudio(A_NEIN);
+
+    attempt += 1;
+    if(attempt > 3) attempt = 3;
+    triesEl.textContent = String(attempt);
+  }
+
+  // ---------- End / Win ----------
+  function burstConfetti(){
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const colors = ['#ff3ea5','#6b5bff','#ffb703','#3dd6ff','#8bff7a','#ffffff'];
+    for(let i=0;i<240;i++){
+      confetti.push({
+        x: w/2 + rand(-40,40),
+        y: h*0.35 + rand(-30,30),
+        vx: rand(-520,520),
+        vy: rand(-820,-260),
+        vr: rand(-8,8),
+        r: rand(0,Math.PI*2),
+        s: rand(6,12),
+        a: 1,
+        c: colors[Math.floor(Math.random()*colors.length)]
+      });
+    }
+  }
+
+  function endGame(win){
+    running = false;
+    pausedForQuiz = false;
+    quiz.classList.remove('show');
+
+    // show overlay
+    screen.classList.add('show');
+
+    const panel = screen.querySelector('.panel');
+    const center = panel.querySelector('.center');
+
+    const title = center.querySelector('.bigText');
+    const text  = center.querySelector('.smallText');
+
+    if(win){
+      burstConfetti();
+      title.textContent = 'Super! Du bist toll! 🎆';
+      text.innerHTML = `Du hast <b>alle 7 Fragen</b> geschafft!<br>Dein Score: <b>${score}</b>`;
+      startBtn.textContent = 'Noch einmal spielen 🔁';
+    } else {
+      title.textContent = 'Oh nein! 😅';
+      text.innerHTML = `Drei Früchte hintereinander verpasst.<br>Dein Score: <b>${score}</b>`;
+      startBtn.textContent = 'Nochmal! 🍎';
+    }
+  }
+
+  function startGame(){
+    screen.classList.remove('show');
+    running = true;
+    pausedForQuiz = false;
+    lastT = 0;
+    spawnTimer = 0;
+  }
+
+  // ---------- Preload & Boot ----------
+  async function preload(){
+    const list = new Set([BASKET_IMG, 'frau_anna.png']);
+    for(const f of FRUITS) list.add(f.img);
+
+    const imgs = await Promise.all([...list].map(loadImage));
+    [...list].forEach((src, i) => imgCache.set(src, imgs[i]));
+  }
+
+  startBtn.addEventListener('click', async () => {
+    // first click is a user gesture; good time to unlock audio by playing silent/short
+    // (we won't force; just proceed)
+
+    resetGame();
+    // keep current overlay hidden after reset
+    screen.classList.remove('show');
+    running = true;
+  });
+
+  // keep basket in place on first load
+  placeBasket();
+  window.addEventListener('resize', placeBasket, {passive:true});
+
+  preload().then(() => {
+    requestAnimationFrame(loop);
+  });
+
+})();
+</script>
+</body>
+</html>
